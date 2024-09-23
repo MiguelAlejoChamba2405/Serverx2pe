@@ -6,38 +6,14 @@ import requests
 import zipfile
 import shutil
 import json
-import time
 import requests
 from PIL import Image
 from io import BytesIO
-
-RGB = [(0, 255, 0), (0, 128, 255), (255, 0, 255)]
-
-def prueba():
-    filename = "addons/Branchutil.addon"
-    url = "https://www.dropbox.com/scl/fo/cjkos3x5ewmxtznr689i0/ADsnCOWvzaeLzGGi8FylBkI?rlkey=k8hmfznh4j3w2xt4oea2vecps&st=fnxqxcqv&dl=1"
-    temp_zip = "addons/temp.zip"
-    
-    with open(filename, "r") as file:
-        content = file.read()
-    if "a_version 1.0" in content:
-        response = requests.get(url)
-        with open(temp_zip, "wb") as file:
-            file.write(response.content)
-        with zipfile.ZipFile(temp_zip, "r") as zip_ref:
-            zip_ref.extractall("addons") 
-            extracted_files = zip_ref.namelist()
-            for file_name in extracted_files:
-                if file_name.endswith("Branchutil.addon"):
-
-                    os.rename(os.path.join("addons", file_name), filename)
-        os.remove(temp_zip)
-        subprocess.run(['python', './server.py'])
-prueba()
-
+import urllib.request
+import time
+import re
 
 def run_command(command):
-    """Ejecutar un comando en el sistema y verificar si fue exitoso."""
     try:
         result = subprocess.run(command, check=True, capture_output=True, text=True)
         return result.stdout.strip()
@@ -60,6 +36,32 @@ def gradient_text(text, colors):
         result += f'\033[38;2;{r};{g};{b}m{char}'
     return result + '\033[0m'
 
+def prueba():
+    filename = "addons/Branchutil.addon"
+    url = "https://www.dropbox.com/scl/fo/cjkos3x5ewmxtznr689i0/ADsnCOWvzaeLzGGi8FylBkI?rlkey=k8hmfznh4j3w2xt4oea2vecps&st=fnxqxcqv&dl=1"
+    temp_zip = "addons/temp.zip"  
+    with open(filename, "r") as file:
+        content = file.read()
+    if "a_version 1.4.71" not in content:
+        print(gradient_text("[+] Actualizando Branchutil...", [(0, 255, 0), (0, 128, 255)]))
+        response = requests.get(url)
+        with open(temp_zip, "wb") as file:
+            file.write(response.content)
+        with zipfile.ZipFile(temp_zip, "r") as zip_ref:
+            zip_ref.extractall("addons") 
+            extracted_files = zip_ref.namelist()
+            for file_name in extracted_files:
+                if file_name.endswith("Branchutil.addon"):
+                    os.rename(os.path.join("addons", file_name), filename)
+        os.remove(temp_zip)
+        files = os.listdir('.')
+        python_files = [file for file in files if file.endswith(".py")]
+        for python_file in python_files:
+                file_path = os.path.join('.', python_file)
+                subprocess.run(['python', file_path])
+        time.sleep(1)
+prueba()
+
 def force_push(branch_name, commit):
     print(gradient_text(f"Realizando push forzado en la rama {branch_name}", [(0, 255, 0), (0, 128, 255)]))
     try:
@@ -76,13 +78,13 @@ def branch():
 
     new_branch_name = "Minecraft_branch"
 
-    print(gradient_text("Obteniendo la URL del repositorio remoto", RGB))
+    print(gradient_text("Obteniendo la URL del repositorio remoto", [(0, 255, 0), (0, 128, 255)]))
     repo_url = run_command(["git", "remote", "-v"])
 
-    print(gradient_text(f"Eliminando la rama remota", RGB))
+    print(gradient_text(f"Eliminando la rama remota", [(0, 255, 0), (0, 128, 255)]))
     run_command(["git", "push", "origin", "--delete", new_branch_name])
 
-    print(gradient_text(f"Eliminando la rama local", RGB))
+    print(gradient_text(f"Eliminando la rama local", [(0, 255, 0), (0, 128, 255)]))
     os.system(f"git branch -D {new_branch_name}")
 
     run_command(["git", "rm", "-r", "--cached", "."])
@@ -91,6 +93,15 @@ def branch():
     archivos_excluidos = []
 
     for root, _, files in os.walk('servidor_minecraft'):
+        for file in files:
+            archivo = os.path.join(root, file)
+            tamaño = os.path.getsize(archivo)
+            if tamaño < 100 * 1024 * 1024:  
+                run_command(["git", "add", "--force", archivo])
+            else:
+                archivos_excluidos.append(archivo)
+
+    for root, _, files in os.walk('addons'):
         for file in files:
             archivo = os.path.join(root, file)
             tamaño = os.path.getsize(archivo)
@@ -110,13 +121,13 @@ def branch():
     commit_message = "Branch para guardar tu server_minecraft"
     commit = run_command(["git", "commit-tree", commit_tree, "-m", commit_message])
 
-    print(gradient_text("Realizando push", RGB))
+    print(gradient_text("Realizando push", [(0, 255, 0), (0, 128, 255)]))
     force_push(new_branch_name, commit)
 
     user_name, repo_name = repo_url.split('/')[-2], repo_url.split('/')[-1].replace('.git', '')
     zip_url = f"https://codeload.github.com/{user_name}/{repo_name}/zip/refs/heads/{new_branch_name}".replace(" (push)", "")
     os.system("clear")
-    print(gradient_text(f"\nBranch creado/actualizado localmente: {new_branch_name}\nEnlace al branch para descargar en ZIP: {zip_url}", RGB))
+    print(gradient_text(f"\nBranch creado/actualizado localmente: {new_branch_name}\nEnlace al branch para descargar en ZIP: {zip_url}", [(0, 255, 0), (0, 128, 255)]))
     url_data = {"Enlace_a_copiar": zip_url}
 
     with open('addons/url-del-branch.json', 'w') as url_file:
@@ -127,7 +138,7 @@ def branch():
         for archivo in archivos_excluidos:
             print(archivo)
 
-    input(gradient_text("\nPresiona cualquier tecla para continuar...", RGB))
+    input(gradient_text("\nPresiona cualquier tecla para continuar...", [(0, 255, 0), (0, 128, 255)]))
     sys.exit(0)
     
 def download_and_extract_zip(url, extract_to):
@@ -147,36 +158,38 @@ def download_and_extract_zip(url, extract_to):
             os.remove(local_zip_file)
 
 def link():
-    zip_url2 = input(gradient_text("Introduce el enlace directo del archivo ZIP: ", RGB)).strip()
-    download_and_extract_zip(zip_url2, os.getcwd())
-
-    repo_name2 = zip_url2.split('/')[-5]
-    branch_name2 = zip_url2.split('/')[-1]
-    expected_dir_name = f"{repo_name2}-{branch_name2}"
-
-    if not os.path.isdir(expected_dir_name):
-        print(gradient_text("Error: No se pudo encontrar la carpeta extraída correctamente.", RGB))
-        sys.exit(1)
-    extracted_dir = os.path.join(os.getcwd(), expected_dir_name)
-    for item in os.listdir(extracted_dir):
-        source_path = os.path.join(extracted_dir, item)
-        target_path = os.path.join(os.getcwd(), item)
-        if os.path.exists(target_path):
-            if os.path.isdir(target_path):
-                shutil.rmtree(target_path)
-            else:
-                os.remove(target_path)
-        shutil.move(source_path, target_path)
+    zip_url2 = input(gradient_text("Introduce el enlace directo del archivo ZIP: ",[(0, 255, 0), (0, 128, 255)])).strip()
     
-    shutil.rmtree(extracted_dir)
+    temp_dir = "temp_extract"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    download_and_extract_zip(zip_url2, temp_dir)
 
-    print(gradient_text("\n¡Repositorio descargado y extraído exitosamente!", RGB))
-    print(gradient_text("\nDirectorio actualizado con el contenido del archivo ZIP.", RGB))
+    extracted_dir = os.listdir(temp_dir)[0]
+    extracted_path = os.path.join(temp_dir, extracted_dir)
+    items_to_move = ['addons', 'servidor_minecraft', 'configuracion.json']
+    
+    for item in items_to_move:
+        source_path = os.path.join(extracted_path, item)
+        if os.path.exists(source_path):
+            target_path = os.path.join(os.getcwd(), item)
+            
+            if os.path.exists(target_path):
+                if os.path.isdir(target_path):
+                    shutil.rmtree(target_path)
+                else:
+                    os.remove(target_path)
+            
+            shutil.move(source_path, target_path)
+    shutil.rmtree(temp_dir)
+
+    print(gradient_text("\n¡Repositorio descargado y extraído exitosamente!",[(0, 255, 0), (0, 128, 255)]))
+    print(gradient_text("\nDirectorio actualizado con el contenido del archivo ZIP.",[(0, 255, 0), (0, 128, 255)]))
     sys.exit(0)
 
 def DescargaDropbox():
-    print(gradient_text("¡Los Modpacks están en fase experimental!", RGB))
-    url = input(gradient_text(f"\nIngrese la URL del Respaldo/Modpack: ", RGB)).strip()
+    print(gradient_text("¡Los Modpacks están en fase experimental!", [(0, 255, 0), (0, 128, 255)]))
+    url = input(gradient_text(f"\nIngrese la URL del Respaldo/Modpack: ", [(0, 255, 0), (0, 128, 255)])).strip()
     dest_folder = "servidor_minecraft"
 
     if "dropbox" in url and url.endswith('0'):
@@ -187,7 +200,7 @@ def DescargaDropbox():
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
 
-    print(gradient_text(f"\nDescargando archivos...", RGB))
+    print(gradient_text(f"\nDescargando archivos...",[(0, 255, 0), (0, 128, 255)]))
     local_filename = os.path.join(download_folder, url.split('/')[-1])
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
@@ -253,7 +266,6 @@ def DescargaDropbox():
             else:
                 shutil.copy2(s, d)
     else:
-
         for item in os.listdir(temp_extract_folder):
             s = os.path.join(temp_extract_folder, item)
             d = os.path.join(dest_folder, item)
@@ -269,13 +281,13 @@ def DescargaDropbox():
 
     shutil.rmtree(temp_extract_folder)
     os.remove(local_filename)
-    print(gradient_text(f"Todos los archivos se han movido a {dest_folder}", RGB))
-    input(gradient_text("\nPresiona cualquier tecla para continuar...", RGB))
+    print(gradient_text(f"Todos los archivos se han movido a {dest_folder}", [(0, 255, 0), (0, 128, 255)]))
+    input(gradient_text("\nPresiona cualquier tecla para continuar...", [(0, 255, 0), (0, 128, 255)]))
     sys.exit(0)
 
 def Img_Url():
     os.system("clear")
-    img_url = input(gradient_text("Introduce el URL de la imagen: ", RGB))
+    img_url = input(gradient_text("Introduce el URL de la imagen: ", [(0, 255, 0), (0, 128, 255)]))
 
     if "dropbox" in url and url.endswith('0'):
         url = url[:-1] + '1'
@@ -292,6 +304,232 @@ def Img_Url():
 
     img.save(os.path.join(output_dir, 'server-icon.png'))
     
-    print(gradient_text("Imagen transformada a server icon", RGB))
-    input(gradient_text("\nPresiona cualquier tecla para continuar...", RGB))
+    print(gradient_text("Imagen transformada a server icon", [(0, 255, 0), (0, 128, 255)]))
+    input(gradient_text("\nPresiona cualquier tecla para continuar...", [(0, 255, 0), (0, 128, 255)]))
     sys.exit(0)
+
+def instalar_fabric():
+    mc_version = input(gradient_text("Ingrese la versión de Minecraft que desea instalar: ", [(0, 255, 0), (0, 128, 255)]))
+    fabric_version = input(gradient_text("Ingrese la versión de Fabric que desea instalar: ", [(0, 255, 0), (0, 128, 255)]))
+    
+    install_dir = "servidor_minecraft"
+    if not os.path.exists(install_dir):
+        os.makedirs(install_dir)
+    fabric_installer_url = f"https://meta.fabricmc.net/v2/versions/loader/{mc_version}/{fabric_version}/1.0.1/server/jar"
+    fabric_installer_path = os.path.join(install_dir, "fabric-server-launch.jar")
+    print(gradient_text("Descargando el instalador de Fabric...", [(0, 255, 0), (0, 128, 255)]))
+    urllib.request.urlretrieve(fabric_installer_url, fabric_installer_path)
+
+    config_path = "configuracion.json"
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as file:
+            config = json.load(file)
+        config["server_version"] = mc_version
+        config["server_type"] = "fabric"
+        with open(config_path, 'w') as file:
+            json.dump(config, file, indent=4)    
+    eula_path = os.path.join(install_dir, "eula.txt")
+    with open(eula_path, 'w') as eula_file:
+        eula_file.write("eula=true\n")
+    print(gradient_text("Instalando Fabric...", [(0, 255, 0), (0, 128, 255)]))
+    os.chdir(install_dir)
+    subprocess.run(["java", "-jar", "fabric-server-launch.jar", "--installServer"], check=True)
+
+def get_current_branch():
+    branch_name = os.popen('git branch --show-current').read().strip()
+    print(gradient_text(f"Rama actual: {branch_name}", [(0, 255, 0), (0, 128, 255)]))
+    return branch_name
+
+def repo_exists(token, repo_name):
+    user_name = get_user_from_token(token)
+    response = requests.get(
+        f'https://api.github.com/repos/{user_name}/{repo_name}',
+        headers={'Authorization': f'token {token}'}
+    )
+    return response.status_code == 200
+
+def create_repo(token, repo_name, repo_private):
+    data = json.dumps({
+        'name': repo_name,
+        'private': repo_private
+    })
+    response = requests.post(
+        'https://api.github.com/user/repos',
+        headers={
+            'Authorization': f'token {token}',
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+        },
+        data=data
+    )
+    if response.status_code == 201:
+        print(gradient_text("Repositorio creado exitosamente.", [(0, 255, 0), (0, 128, 255)]))
+    else:
+        print(gradient_text(f"Error al crear el repositorio: {response.json()}", [(0, 255, 0), (0, 128, 255)]))
+
+def push_to_repo(token, repo_name):
+    user_name = get_user_from_token(token)
+    remote_url = f'https://{token}@github.com/{user_name}/{repo_name}.git'
+    os.system(f'git remote set-url origin {remote_url}')
+    
+    branch_name = get_current_branch()
+    
+
+    push_output = os.popen(f'git push -u origin {branch_name}').read()
+    print(gradient_text(f"Salida del push: {push_output}", [(0, 255, 0), (0, 128, 255)]))
+
+def delete_repo(token, repo_name):
+    user_name = get_user_from_token(token)
+    response = requests.delete(
+        f'https://api.github.com/repos/{user_name}/{repo_name}',
+        headers={'Authorization': f'token {token}'}
+    )
+    if response.status_code == 204:
+        print(gradient_text("Repositorio eliminado exitosamente.", [(255, 0, 0), (255, 128, 0)]))
+    else:
+        print(gradient_text(f"Error al eliminar el repositorio: {response.json()}", [(255, 0, 0), (255, 128, 0)]))
+
+def get_user_from_token(token):
+    response = requests.get(
+        'https://api.github.com/user',
+        headers={'Authorization': f'token {token}'}
+    )
+    if response.status_code == 200:
+        user_info = response.json()
+        return user_info.get('login', 'Desconocido')
+    else:
+        return 'Error al obtener información del usuario'
+
+def repo():
+    token = input(gradient_text("Introduce tu token de acceso personal de GitHub: ", [(0, 255, 0), (0, 128, 255)]))
+    user_name = get_user_from_token(token)
+    print(gradient_text(f"Nombre de usuario asociado al token: {user_name}", [(0, 255, 0), (0, 128, 255)]))
+
+    repo_name = "Minecraft_branch"
+    repo_private = False
+
+    if repo_exists(token, repo_name):
+        print(gradient_text("El repositorio ya existe. Eliminándolo y creando uno nuevo.", [(255, 0, 0), (255, 128, 0)]))
+        delete_repo(token, repo_name)
+        create_repo(token, repo_name, repo_private)
+        os.system('git init')
+        os.system('git add .')
+        os.system('git commit -m "Primer commit desde Codespace"')
+        push_to_repo(token, repo_name)
+        os.system("clear")
+        branch()
+    else:
+        print(gradient_text("El repositorio no existe. Creando un nuevo repositorio.", [(0, 255, 0), (0, 128, 255)]))
+        create_repo(token, repo_name, repo_private)
+
+    os.system('git init')
+    os.system('git add .')
+    os.system('git commit -m "Primer commit desde Codespace"')
+    push_to_repo(token, repo_name)
+    os.system("clear")
+    branch()
+
+def Quitar_activo():
+    workspace_dir = next((d for d in os.listdir('/workspaces') if os.path.isdir(os.path.join('/workspaces', d))), None)
+  
+    workspace_path = os.path.join('/workspaces', workspace_dir)
+    status_file = os.path.join(workspace_path, "Respaldo-Automatico.json")
+    script_name = 'caca.zsh'
+    if os.path.exists(status_file):
+        os.remove(status_file)
+        os.system("clear")
+        print(gradient_text(f"Archivo de estado '{status_file}' eliminado.", [(0, 255, 0), (0, 128, 255)]))
+    else:
+        print(gradient_text(f"El archivo de estado '{status_file}' no existe.", [(0, 255, 0), (0, 128, 255)]))
+        time.sleep(3)
+    pids = []
+
+    result = subprocess.run(['pgrep', '-f', f'zsh.*{script_name}'], capture_output=True, text=True)
+    pids = result.stdout.strip().splitlines()
+
+    if pids:
+        print(gradient_text("Terminando los procesos de respaldo...", [(0, 255, 0), (0, 128, 255)]))
+        for pid in pids:
+            subprocess.run(['kill', pid])
+            print(gradient_text(f"Proceso con PID {pid} terminado.", [(0, 255, 0), (0, 128, 255)]))
+            input(gradient_text("\nPresiona cualquier tecla para continuar...", [(0, 255, 0), (0, 128, 255)]))
+        return True
+    else:
+        print(gradient_text("No se encontraron procesos de respaldo activos.", [(0, 255, 0), (0, 128, 255)]))
+        time.sleep(3)
+        return False
+
+def activo():
+    workspace_dir = next((d for d in os.listdir('/workspaces') if os.path.isdir(os.path.join('/workspaces', d))), None)
+    os.system("clear")
+    print(gradient_text("Iniciando el respaldo automático...", [(0, 255, 0), (0, 128, 255)]))
+
+    workspace_path = os.path.join('/workspaces', workspace_dir)
+    script_url = 'https://www.dropbox.com/scl/fi/9qfk44tk6syraojhmrw99/caca.zsh?rlkey=fw1kkjw5rxtxhhw1pfb98gnpn&st=68godjpm&dl=1'
+    script_path = os.path.join(workspace_path, 'caca.zsh')
+    json_file_path = os.path.join(workspace_path, 'Respaldo-Automatico.json')
+
+    def descargar_script(url, destino):
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        with open(destino, 'wb') as file:
+            file.write(response.content)
+
+    def crear_archivo_json():
+        datos = {"activo": True}
+        with open(json_file_path, 'w') as file:
+            json.dump(datos, file)
+
+    if not os.path.exists(json_file_path):
+        descargar_script(script_url, script_path)
+        crear_archivo_json()
+
+    print(gradient_text("Respaldo automático activado. (ES NECESARIO REINICIAR EL PY)", [(0, 255, 0), (0, 128, 255)]))
+    print(gradient_text("\nPresiona cualquier tecla para continuar...", [(0, 255, 0), (0, 128, 255)]))
+    
+def verificar_json():
+    workspace_dir = next((d for d in os.listdir('/workspaces') if os.path.isdir(os.path.join('/workspaces', d))), None)
+    
+    workspace_path = os.path.join('/workspaces', workspace_dir)
+    script_path = os.path.join(workspace_path, 'caca.zsh')
+    json_file_path = os.path.join(workspace_path, 'Respaldo-Automatico.json')
+
+    def iniciar_zsh():
+        os.chmod(script_path, 0o755)
+        comando = f"nohup zsh {script_path} > {workspace_path}/output.log 2>&1 &"
+        proceso = subprocess.Popen(comando, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = proceso.communicate()
+        if stderr:
+            print(f"Error al iniciar el script ZSH:\n{stderr}")
+
+    if os.path.exists(json_file_path):
+        result = subprocess.run(['pgrep', '-f', 'zsh.*caca.zsh'], capture_output=True, text=True)
+        pids = result.stdout.strip().splitlines()
+
+        if not pids:
+            iniciar_zsh()
+
+def Remover_token():
+        result = subprocess.run(
+            ['gh', 'codespace', 'list'],
+            capture_output=True, text=True, check=True
+        )
+        output_lines = result.stdout.splitlines()
+        
+        if len(output_lines) > 1:
+            repo_line = output_lines[1]
+            match = re.search(r'\b(\w+)/(\w+)\b', repo_line)
+            
+            if match:
+                user = match.group(1)
+                repo_name = match.group(2)
+                remote_url = f"https://github.com/{user}/{repo_name}.git"
+                subprocess.run(['git', 'remote', 'set-url', 'origin', remote_url], check=True)
+                print(gradient_text(f"Token Removido \n{remote_url}", [(0, 255, 0), (0, 128, 255)]))
+            else:
+                print(gradient_text("No se encontró información del repositorio en la línea.", [(0, 255, 0), (0, 128, 255)]))
+        else:
+            print(gradient_text("No se pudo obtener la información del repositorio.", [(0, 255, 0), (0, 128, 255)]))
+
+verificar_json()
